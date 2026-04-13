@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>📚 Frequência Escolar – SEMED / Junqueiro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --verde: #2e7d32;
+    --verde-claro: #4caf50;
+    --azul: #1565c0;
+    --laranja: #e65100;
+    --cinza: #f5f5f5;
+    --branco: #ffffff;
+    --sombra: 0 4px 20px rgba(0,0,0,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 100%);
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(90deg, var(--verde) 0%, var(--azul) 100%);
+    color: white;
+    padding: 16px 20px;
+    text-align: center;
+    box-shadow: var(--sombra);
+  }
+  header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: 0.5px; }
+  header p  { font-size: 0.82rem; opacity: 0.88; margin-top: 4px; }
+  .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+
+  /* Config panel */
+  .config-panel {
+    background: white; border-radius: 14px; padding: 18px;
+    margin-bottom: 16px; box-shadow: var(--sombra);
+  }
+  .campo-url { display: none; }
+  .config-panel h2 { font-size: 0.95rem; color: var(--azul); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  label { font-size: 0.82rem; color: #555; font-weight: 600; display: block; margin-bottom: 4px; }
+  input, select {
+    width: 100%; padding: 10px 12px; border: 1.5px solid #ddd; border-radius: 8px;
+    font-size: 0.9rem; margin-bottom: 10px; transition: border-color 0.2s;
+    background: #fafafa;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--azul); background: white; }
+  .btn-carregar {
+    width: 100%; padding: 10px; border-radius: 8px; border: none;
+    background: var(--azul); color: white; font-weight: 700; cursor: pointer; font-size: 0.88rem;
+  }
+  .btn-carregar:hover { background: #0d47a1; }
+  .btn-ping {
+    width: 100%; padding: 8px; border-radius: 8px; border: none;
+    background: #e3f2fd; color: var(--azul); font-weight: 600; cursor: pointer;
+    font-size: 0.82rem; margin-bottom: 10px;
+  }
+  .btn-ping:hover { background: var(--azul); color: white; }
+
+  /* Status API */
+  .api-status {
+    font-size: 0.78rem; padding: 6px 10px; border-radius: 6px;
+    margin-bottom: 10px; display: none;
+  }
+  .api-status.ok  { background: #e8f5e9; color: #2e7d32; display: block; }
+  .api-status.err { background: #ffebee; color: #b71c1c; display: block; }
+  .api-status.info { background: #e3f2fd; color: #1565c0; display: block; }
+
+  /* Turno filtro */
+  .turno-info {
+    font-size: 0.76rem; color: #888; margin-bottom: 10px;
+    padding: 5px 8px; background: #f5f5f5; border-radius: 6px;
+  }
+
+  /* Scanner */
+  .scanner-card {
+    background: white; border-radius: 14px; padding: 18px;
+    margin-bottom: 16px; box-shadow: var(--sombra);
+  }
+  .scanner-card h2 { font-size: 0.95rem; color: var(--verde); margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+  #reader {
+    border-radius: 10px; overflow: hidden; margin-bottom: 12px;
+    border: 3px solid var(--verde-claro); background: #111;
+  }
+  #reader video { border-radius: 8px; }
+  .btn {
+    display: block; width: 100%; padding: 13px;
+    border: none; border-radius: 10px; font-size: 1rem;
+    font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.4px;
+  }
+  .btn-green { background: var(--verde-claro); color: white; }
+  .btn-green:hover { background: var(--verde); }
+  .btn-red { background: #ef5350; color: white; }
+  .btn-red:hover { background: #c62828; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* Manual */
+  .manual-row { display: flex; gap: 8px; margin-top: 10px; }
+  .manual-row input { margin-bottom: 0; flex: 1; }
+  .manual-row button {
+    white-space: nowrap; padding: 10px 16px; border-radius: 8px;
+    background: var(--azul); color: white; border: none; font-weight: 700; cursor: pointer; font-size: 0.88rem;
+  }
+
+  /* Feedback */
+  .feedback {
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;
+    font-size: 0.92rem; font-weight: 600;
+    display: none; align-items: center; gap: 10px;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform: translateY(-10px); } to { opacity:1; transform: translateY(0); } }
+  .feedback.ok  { background: #e8f5e9; border: 2px solid #a5d6a7; color: #1b5e20; display: flex; }
+  .feedback.err { background: #ffebee; border: 2px solid #ef9a9a; color: #b71c1c; display: flex; }
+  .feedback.dup { background: #fff8e1; border: 2px solid #ffe082; color: #e65100; display: flex; }
+  .feedback-icon { font-size: 1.5rem; }
+
+  /* Stats */
+  .stats-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .stat-box { background: white; border-radius: 12px; padding: 12px 10px; text-align: center; box-shadow: var(--sombra); }
+  .stat-box .num { font-size: 1.6rem; font-weight: 800; }
+  .stat-box .lbl { font-size: 0.72rem; color: #888; margin-top: 2px; }
+  .stat-presentes .num { color: var(--verde); }
+  .stat-hoje .num     { color: var(--azul); }
+  .stat-hora .num     { color: var(--laranja); font-size: 1.1rem; }
+
+  /* Alerta de envio offline */
+  .offline-badge {
+    background: #fff3e0; border: 1px solid #ffcc80; border-radius: 8px;
+    padding: 6px 10px; font-size: 0.76rem; color: #e65100;
+    margin-top: 8px; display: none;
+  }
+  .offline-badge.show { display: block; }
+
+  /* Log */
+  .log-card { background: white; border-radius: 14px; padding: 18px; box-shadow: var(--sombra); margin-bottom: 16px; }
+  .log-card h2 { font-size: 0.95rem; color: #555; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .log-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .badge-count { background: var(--verde-claro); color: white; border-radius: 20px; padding: 3px 12px; font-size: 0.8rem; font-weight: 700; }
+  .log-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; border-radius: 8px; margin-bottom: 6px;
+    background: #f9f9f9; border-left: 4px solid var(--verde-claro); font-size: 0.84rem;
+  }
+  .log-item.pendente { border-left-color: #ffb300; }
+  .log-item .log-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; font-weight: 700; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--verde-claro), var(--azul)); color: white;
+  }
+  .log-name { font-weight: 700; color: #333; }
+  .log-meta { color: #888; font-size: 0.78rem; }
+  .log-via  { font-size: 0.72rem; color: #aaa; margin-top: 2px; }
+  .log-time { margin-left: auto; font-size: 0.82rem; color: var(--azul); font-weight: 600; text-align: right; }
+  .log-sync { font-size: 0.68rem; color: #aaa; display: block; }
+  .log-empty { text-align: center; color: #aaa; padding: 20px; font-size: 0.88rem; }
+
+  /* Export */
+  .export-row { display: flex; gap: 8px; margin-top: 10px; }
+  .export-row button { flex: 1; padding: 11px; border-radius: 9px; border: none; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+  .btn-export-csv { background: #e3f2fd; color: var(--azul); }
+  .btn-export-csv:hover { background: var(--azul); color: white; }
+  .btn-clear { background: #ffebee; color: #c62828; }
+  .btn-clear:hover { background: #c62828; color: white; }
+  .btn-reenviar { background: #fff3e0; color: #e65100; }
+  .btn-reenviar:hover { background: #e65100; color: white; }
+
+  /* Loading */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: var(--azul); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer { text-align: center; padding: 14px; font-size: 0.75rem; color: #999; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📚 Sistema de Frequência Escolar</h1>
+  <p id="headerEscola">SEMED / Junqueiro</p>
+</header>
+
+<div class="container">
+
+  <!-- Configuração -->
+  <div class="config-panel">
+    <h2>⚙️ Configuração</h2>
+    <!-- URL fixa – não exibida ao usuário -->
+    <input type="hidden" id="scriptUrl"
+           value="https://script.google.com/macros/s/AKfycbyHTRbPKnnn_jw_PMy7GPuWw1Q9--VzEdp4BAdbfjqpqx6WsCVzYvIah3QASy6Lq0A/exec">
+    <button class="btn-ping" onclick="testarConexao()">🔌 Testar Conexão</button>
+    <label>Turno</label>
+    <select id="turno">
+      <option value="Manhã">🌅 Manhã</option>
+      <option value="Tarde">🌇 Tarde</option>
+      <option value="Noite">🌙 Noite</option>
+    </select>
+    <div class="turno-info" id="turnoInfo">💡 Selecione o turno antes de carregar os alunos para filtrar por turno automaticamente.</div>
+    <button class="btn-carregar" onclick="carregarAlunos()">
+      🔄 Carregar Alunos da Planilha
+    </button>
+    <div class="api-status" id="apiStatus"></div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-box stat-presentes">
+      <div class="num" id="statTotal">0</div>
+      <div class="lbl">Registros Hoje</div>
+    </div>
+    <div class="stat-box stat-hoje">
+      <div class="num" id="statData">--/--</div>
+      <div class="lbl">Data</div>
+    </div>
+    <div class="stat-box stat-hora">
+      <div class="num" id="statHora">00:00</div>
+      <div class="lbl">Hora Atual</div>
+    </div>
+  </div>
+
+  <!-- Feedback -->
+  <div class="feedback" id="feedback">
+    <span class="feedback-icon" id="fbIcon">✅</span>
+    <div>
+      <div id="fbTitulo">OK</div>
+      <div id="fbDetalhe" style="font-size:0.82rem;font-weight:400;margin-top:2px;"></div>
+    </div>
+  </div>
+
+  <!-- Aviso offline -->
+  <div class="offline-badge" id="offlineBadge">
+    ⚡ <strong id="offlineCount">0</strong> registro(s) aguardando sincronização com a planilha.
+    <button class="btn-reenviar" style="margin-top:6px;width:100%;padding:7px;border-radius:6px;border:none;font-weight:700;font-size:0.8rem;cursor:pointer;" onclick="reenviarPendentes()">↑ Reenviar pendentes</button>
+  </div>
+
+  <!-- Scanner -->
+  <div class="scanner-card">
+    <h2>📷 Leitor de QR Code</h2>
+    <div id="reader"></div>
+    <button class="btn btn-green" id="btnStart" onclick="startScanner()">▶ Iniciar Câmera</button>
+    <button class="btn btn-red"   id="btnStop"  onclick="stopScanner()" style="display:none;margin-top:8px;">⏹ Parar Câmera</button>
+
+    <div class="manual-row" style="margin-top:14px;">
+      <input type="text" id="manualId" placeholder="Ou digitar matrícula manualmente..." maxlength="30">
+      <button onclick="registrarManual()">✓ OK</button>
+    </div>
+  </div>
+
+  <!-- Log do dia -->
+  <div class="log-card">
+    <div class="log-header-row">
+      <h2>📋 Registros de Hoje</h2>
+      <span class="badge-count" id="badgeCount">0</span>
+    </div>
+    <div id="logList"><div class="log-empty">Nenhum registro ainda. Configure a URL, carregue os alunos, inicie a câmera e escaneie!</div></div>
+
+    <div class="export-row">
+      <button class="btn-export-csv" onclick="exportarCSV()">⬇ Exportar CSV</button>
+      <button class="btn-clear" onclick="limparLog()">🗑 Limpar</button>
+    </div>
+  </div>
+
+</div>
+
+<footer>Sistema de Frequência Escolar v2.0 · SEMED / Junqueiro · 2026</footer>
+
+<script>
+// ───── Estado Global ─────
+let scanner      = null;
+let isScanning   = false;
+let lastScan     = '';
+let lastScanTime = 0;
+const COOLDOWN_MS = 3000;
+
+// Banco de alunos carregado da planilha via Apps Script
+let alunosDB = {};           // { matricula: { nome, turma, turno } }
+let alunosCarregados = false;
+
+// Registros do dia (memória de sessão)
+let registrosHoje = [];
+let pendentes = [];          // Registros não enviados para a planilha
+const hoje = new Date().toLocaleDateString('pt-BR');
+
+// ───── Relógio ─────
+function atualizarRelogio() {
+  const agora = new Date();
+  document.getElementById('statHora').textContent =
+    agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('statData').textContent =
+    agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+setInterval(atualizarRelogio, 1000);
+atualizarRelogio();
+
+// ───── Testar Conexão ─────
+async function testarConexao() {
+  const url = getUrl();
+  const statusEl = document.getElementById('apiStatus');
+  if (!url) { mostrarStatus('err', '⚠️ Cole a URL do Web App antes de testar.'); return; }
+
+  mostrarStatus('info', '<span class="spinner"></span>Testando conexão...');
+  try {
+    const resp = await fetch(`${url}?action=ping`);
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      mostrarStatus('ok', `✅ Conexão OK! Apps Script respondeu. ${data.timestamp ? '(' + new Date(data.timestamp).toLocaleTimeString('pt-BR') + ')' : ''}`);
+    } else {
+      throw new Error(data.mensagem || 'Resposta inesperada');
+    }
+  } catch (e) {
+    mostrarStatus('err', `❌ Falha na conexão: ${e.message}`);
+  }
+}
+
+// ───── Carregar Alunos da Planilha ─────
+async function carregarAlunos() {
+  const url = getUrl();
+  if (!url) { mostrarStatus('err', '⚠️ URL inválida. Cole a URL do Web App publicado.'); return; }
+
+  const turno = document.getElementById('turno').value;
+  mostrarStatus('info', '<span class="spinner"></span>Carregando alunos da planilha...');
+
+  try {
+    // Carrega todos os alunos ativos (sem filtro de turno no GET para ter todos disponíveis)
+    const resp = await fetch(`${url}?action=listarAlunos`);
+    const data = await resp.json();
+
+    if (data.status === 'ok' && data.alunos) {
+      alunosDB = {};
+      data.alunos.forEach(a => {
+        alunosDB[String(a.matricula).trim()] = {
+          nome:    a.nome,
+          turma:   a.turma,
+          turno:   a.turno,
+          situacao: a.situacao
+        };
+      });
+      alunosCarregados = true;
+      mostrarStatus('ok', `✅ ${data.total} alunos ativos carregados da planilha!`);
+    } else {
+      throw new Error(data.mensagem || 'Resposta inesperada da planilha.');
+    }
+  } catch (err) {
+    mostrarStatus('err', `❌ Erro ao carregar: ${err.message}. Verifique a URL e permissões do Web App.`);
+  }
+}
+
+// ───── Scanner QR ─────
+function startScanner() {
+  if (isScanning) return;
+  document.getElementById('btnStart').style.display = 'none';
+  document.getElementById('btnStop').style.display  = 'block';
+
+  scanner = new Html5Qrcode("reader");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 240, height: 240 } },
+    onScanSuccess,
+    () => {}
+  ).then(() => { isScanning = true; })
+   .catch(() => {
+     showFeedback('err', '⚠️ Câmera não disponível', 'Verifique as permissões do navegador.');
+     document.getElementById('btnStart').style.display = 'block';
+     document.getElementById('btnStop').style.display  = 'none';
+   });
+}
+
+function stopScanner() {
+  if (scanner && isScanning) {
+    scanner.stop().then(() => {
+      isScanning = false;
+      document.getElementById('btnStart').style.display = 'block';
+      document.getElementById('btnStop').style.display  = 'none';
+    });
+  }
+}
+
+function onScanSuccess(decodedText) {
+  const agora = Date.now();
+  if (decodedText === lastScan && agora - lastScanTime < COOLDOWN_MS) return;
+  lastScan     = decodedText;
+  lastScanTime = agora;
+  processarMatricula(decodedText.trim());
+}
+
+function registrarManual() {
+  const val = document.getElementById('manualId').value.trim();
+  if (!val) return;
+  processarMatricula(val);
+  document.getElementById('manualId').value = '';
+}
+
+// ───── Processamento Central ─────
+function processarMatricula(matricula) {
+  const agora = new Date();
+  const hora  = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const data  = agora.toLocaleDateString('pt-BR');
+  const turno = document.getElementById('turno').value;
+
+  // Verificar duplicata local
+  const jaRegistrado = registrosHoje.find(r => r.matricula === matricula);
+  if (jaRegistrado) {
+    showFeedback('dup', '⚠️ Já registrado hoje!',
+      `${jaRegistrado.nome || matricula} · Entrada: ${jaRegistrado.hora}`);
+    vibrar([100, 50, 100]);
+    return;
+  }
+
+  // Buscar no banco local
+  const aluno = alunosDB[matricula];
+
+  if (!aluno && alunosCarregados) {
+    showFeedback('err', '❌ Matrícula não encontrada',
+      `"${matricula}" não está cadastrado na planilha ativa.`);
+    vibrar([200, 100, 200]);
+    return;
+  }
+
+  const nome  = aluno ? aluno.nome  : `Matrícula ${matricula}`;
+  const turma = aluno ? aluno.turma : '—';
+  const via   = isScanning ? 'QR Code' : 'Manual';
+
+  const registro = {
+    matricula, nome, turma, data, hora, turno,
+    status: 'Presente', via,
+    sincronizado: false
+  };
+
+  registrosHoje.unshift(registro);
+  renderizarLog();
+  atualizarStats();
+  showFeedback('ok', `✅ ${nome}`, `Turma: ${turma} · ${hora} · ${turno} · ${via}`);
+  vibrar([200]);
+
+  // Enviar para a planilha via Apps Script
+  enviarParaSheets(registro);
+}
+
+// ───── Envio para Google Sheets (Apps Script) ─────
+async function enviarParaSheets(registro) {
+  const url = getUrl();
+  if (!url) {
+    marcarPendente(registro);
+    return;
+  }
+
+  try {
+    // Converte data pt-BR (DD/MM/YYYY) → mantém formato compatível com a planilha
+    const params = new URLSearchParams({
+      action:    'registrarPresenca',
+      matricula: registro.matricula,
+      data:      registro.data,       // DD/MM/YYYY
+      hora:      registro.hora,       // HH:MM
+      turno:     registro.turno,
+      status:    registro.status,
+      via:       registro.via
+    });
+
+    // mode: no-cors é necessário para Apps Script publicado sem CORS headers
+    await fetch(`${url}?${params}`, { method: 'GET', mode: 'no-cors' });
+
+    // Como no-cors não retorna body, assumimos sucesso após envio sem erro
+    registro.sincronizado = true;
+    atualizarOfflineBadge();
+    renderizarLog();
+  } catch (e) {
+    console.warn('Erro ao enviar para Sheets:', e);
+    marcarPendente(registro);
+  }
+}
+
+function marcarPendente(registro) {
+  registro.sincronizado = false;
+  if (!pendentes.find(p => p.matricula === registro.matricula && p.data === registro.data)) {
+    pendentes.push(registro);
+  }
+  atualizarOfflineBadge();
+  renderizarLog();
+}
+
+async function reenviarPendentes() {
+  if (pendentes.length === 0) return;
+  const lista = [...pendentes];
+  pendentes = [];
+  for (const reg of lista) {
+    await enviarParaSheets(reg);
+    await new Promise(r => setTimeout(r, 400)); // respeitar rate limit
+  }
+  atualizarOfflineBadge();
+}
+
+function atualizarOfflineBadge() {
+  const total = registrosHoje.filter(r => !r.sincronizado).length;
+  const badge = document.getElementById('offlineBadge');
+  document.getElementById('offlineCount').textContent = total;
+  badge.className = 'offline-badge' + (total > 0 ? ' show' : '');
+}
+
+// ───── Feedback Visual ─────
+function showFeedback(tipo, titulo, detalhe) {
+  const el = document.getElementById('feedback');
+  el.className = `feedback ${tipo}`;
+  document.getElementById('fbTitulo').textContent  = titulo;
+  document.getElementById('fbDetalhe').textContent = detalhe;
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.className = 'feedback'; }, 4500);
+}
+
+function mostrarStatus(tipo, html) {
+  const el = document.getElementById('apiStatus');
+  el.className = 'api-status ' + tipo;
+  el.innerHTML = html;
+}
+
+function vibrar(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+// ───── Renderizar Log ─────
+function renderizarLog() {
+  const container = document.getElementById('logList');
+  if (registrosHoje.length === 0) {
+    container.innerHTML = '<div class="log-empty">Nenhum registro ainda. Configure a URL, carregue os alunos e escaneie!</div>';
+    return;
+  }
+  container.innerHTML = registrosHoje.slice(0, 50).map(r => {
+    const ini = r.nome.split(' ').map(p => p[0]).slice(0,2).join('').toUpperCase();
+    const syncLabel = r.sincronizado === true
+      ? '<span class="log-sync">✅ Sincronizado</span>'
+      : '<span class="log-sync" style="color:#ffb300;">⏳ Aguardando</span>';
+    const cls = r.sincronizado ? 'log-item' : 'log-item pendente';
+    return `<div class="${cls}">
+      <div class="log-avatar">${ini}</div>
+      <div>
+        <div class="log-name">${r.nome}</div>
+        <div class="log-meta">Turma ${r.turma} · Mat. ${r.matricula}</div>
+        <div class="log-via">${r.via} · ${r.turno}${syncLabel}</div>
+      </div>
+      <div class="log-time">${r.hora}</div>
+    </div>`;
+  }).join('');
+}
+
+function atualizarStats() {
+  document.getElementById('statTotal').textContent  = registrosHoje.length;
+  document.getElementById('badgeCount').textContent = registrosHoje.length;
+}
+
+function limparLog() {
+  if (!confirm('Apagar todos os registros locais de hoje? (Os já sincronizados permanecem na planilha.)')) return;
+  registrosHoje = [];
+  pendentes = [];
+  renderizarLog();
+  atualizarStats();
+  atualizarOfflineBadge();
+}
+
+// ───── Exportar CSV ─────
+function exportarCSV() {
+  if (registrosHoje.length === 0) { alert('Nenhum registro para exportar.'); return; }
+  const header = 'Matrícula,Nome,Turma,Data,Hora,Turno,Status,Via,Sincronizado\n';
+  const rows   = registrosHoje.map(r =>
+    `"${r.matricula}","${r.nome}","${r.turma}","${r.data}","${r.hora}","${r.turno}","${r.status}","${r.via}","${r.sincronizado ? 'Sim' : 'Não'}"`
+  ).join('\n');
+  const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `frequencia_${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  a.click();
+}
+
+// ───── Utilitários ─────
+// URL fixa do Apps Script – não requer configuração pelo usuário
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHTRbPKnnn_jw_PMy7GPuWw1Q9--VzEdp4BAdbfjqpqx6WsCVzYvIah3QASy6Lq0A/exec';
+
+function getUrl() {
+  return SCRIPT_URL;
+}
+
+// ───── Init ─────
+renderizarLog();
+atualizarStats();
+atualizarOfflineBadge();
+
+document.getElementById('manualId').addEventListener('keydown', e => {
+  if (e.key === 'Enter') registrarManual();
+});
+
+document.getElementById('turno').addEventListener('change', () => {
+  const t = document.getElementById('turno').value;
+  document.getElementById('turnoInfo').textContent =
+    `Turno selecionado: ${t}. Clique em "Carregar Alunos" para atualizar.`;
+});
+</script>
+</body>
+</html>
